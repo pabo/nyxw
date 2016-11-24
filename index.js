@@ -4,6 +4,7 @@ let getCrosswordData = require("./getCrosswordData.js");
 let crosswords = {};
 let id = 7641;
 let promises = [];
+let count = 0;
 
 for(let id = 7641; id < 12502; id++) {
 	promises.push(getCrosswordData(id).then(function(data) {
@@ -15,7 +16,10 @@ for(let id = 7641; id < 12502; id++) {
 			firstSolved: json.firstSolved,
 			timeElapsed: json.timeElapsed
 		};
-
+		count++;
+		if (count % 20 === 0) {
+			saveData(crosswords);
+		}
 		process.stdout.write(`${id}...`);
 	}));
 }
