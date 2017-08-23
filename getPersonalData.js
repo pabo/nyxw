@@ -1,6 +1,6 @@
 let fs = require("fs");
-let getCrosswordData = require("./getCrosswordData.js");
-let crosswordData = require("./crosswordData.json");
+let { getPersonalData } = require("./getData.js");
+let personalData = require("./pesonalData.json");
 
 const minDay = 7641;
 const maxDay = 13762;
@@ -10,18 +10,18 @@ let count = 0;
 
 // construct all promises
 for(let id = minDay; id <= maxDay; id++) {
-	if (crosswordData[id]) {
+	if (personalData[id]) {
 		// already have data for this day; skip
 	}
 	else {
-		promises.push(getCrosswordData(id).then(function (data) {
+		promises.push(getPersonalData(id).then(function (data) {
 			let json = JSON.parse(data).results;
 
-			crosswordData[id] = json;
+			personalData[id] = json;
 
 			count++;
 			if (count % 20 === 0) {
-				saveData(crosswordData);
+				saveData(personalData);
 			  process.stdout.write(`wrote after ${id}...`);
 			}
 		}));
@@ -30,7 +30,7 @@ for(let id = minDay; id <= maxDay; id++) {
 
 Promise.all(promises).then(() => {
   process.stdout.write(`got to the end. saving data...`);
-  saveData(crosswordData).then(() => {
+  saveData(personalData).then(() => {
     process.stdout.write(`saved.\n`);
 	})
 });
@@ -38,7 +38,7 @@ Promise.all(promises).then(() => {
 
 function saveData(data) {
   return new Promise(function(resolve, reject) {
-    fs.writeFile("crosswordData.json", JSON.stringify(data), (err) => {
+    fs.writeFile("personalData.json", JSON.stringify(data), (err) => {
       if (err) {
 				reject(err);
 			}
