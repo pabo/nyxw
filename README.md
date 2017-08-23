@@ -5,12 +5,11 @@
 #### auth
 1. Log in to nytimes crossword site.
 2. Go to a valid puzzle json url like http://www.nytimes.com/svc/crosswords/v2/game/12503.json
-3. In network panel, copy your Cookie: header and update the script with it
+3. In network panel, copy your Cookie: header and update the getData script with it
 
-## download data
-`node getAllData.js`
+## download the data
+`node getPersonalData.js`
+`node getPuzzleData.js`
 
-## graph data
+## graph the data
 tbd
-
-
