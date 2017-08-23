@@ -1,4 +1,4 @@
-##setup
+## setup
 `git clone`
 `npm install`
 
