@@ -2,7 +2,6 @@ let puzzleData = require("./puzzleData.json");
 let personalData = require("./personalData.json");
 let sma = require("./sma.js");
 
-
 const dates = Object.keys(puzzleData);
 const days = [
   "monday",
@@ -14,123 +13,158 @@ const days = [
   "sunday",
 ];
 
+
 let solvedDates = {}
 let solvedTimes = {};
 
-dates.sort().forEach((date, index, array) => {
-  const thisPuzzle = puzzleData[date].daily;
-  if (thisPuzzle) {
-    console.log(`id is ${date}`);
-    const dailyId = thisPuzzle.id;
-    const myStats = personalData[dailyId];
+function associatePuzzlesWithPersonal(dateKey) {
+  const thisDailyPuzzle = puzzleData[dateKey].daily;
+  const thisMiniPuzzle = puzzleData[dateKey].mini;
 
-    const dayOfWeek = days[new Date(date).getDay()];
-    console.log(`dayofweek is ${dayOfWeek}`);
-
-    thisPuzzle.personalStats = myStats;
-
-    if (myStats) {
-      if (thisPuzzle.personalStats.solved) {
-        if (!solvedDates[dayOfWeek]) {
-          solvedDates[dayOfWeek] = [];
-        }
-        if (!solvedTimes[dayOfWeek]) {
-          solvedTimes[dayOfWeek] = [];
-        }
-
-
-        if (thisPuzzle.personalStats.firstSolved) {
-          solvedDates[dayOfWeek].push(new Date(1000*thisPuzzle.personalStats.firstSolved));
-          solvedTimes[dayOfWeek].push(myStats.timeElapsed);
-        }
-
-      }
-    }
+  if (thisDailyPuzzle) {
+    thisDailyPuzzle.personalData = personalData[thisDailyPuzzle.id];
   }
+  if (thisMiniPuzzle) {
+    thisMiniPuzzle.personalData = personalData[thisMiniPuzzle.id];
+  }
+}
+
+let puzzles = [];
+
+// prep the data
+dates.forEach(function (dateKey) {
+  // add .personalData
+  associatePuzzlesWithPersonal(dateKey);
+
+  // add .dayOfWeek
+  puzzleData[dateKey].dayOfWeek = dayOfWeek(dateKey);
+
+  // add .dateKey
+  puzzleData[dateKey].dateKey = dateKey;
+
+  // push onto puzzles array
+  puzzles.push(puzzleData[dateKey]);
+});
+
+// sort it by date
+puzzles = puzzles.sort((a, b) => {
+  return new Date(a.dateKey).getTime() - new Date(b.dateKey).getTime();
 })
+
+const baseTrace = {
+  type: "scatter",
+  mode: "markers",
+  marker: {
+    symbol: "cross",
+    size: 12,
+  },
+};
+
+let dayTraces = [];
+let smaTraces = [];
+
+days.forEach((dayOfWeek) => {
+  // filter down to completed daily for this day
+  puzzlesOnThisDay = puzzles.filter((puzzle) => {
+    return (puzzle.daily
+      && puzzle.daily.personalData
+      && puzzle.daily.personalData.solved
+      && puzzle.dayOfWeek === dayOfWeek
+    );
+  });
+
+  const colors = {
+    "monday" : "rgb(39,119,180)", //blue
+    "tuesday" : "rgb(23,190,207)", //light blue
+    "wednesday" : "rgb(44,160,44)", //green
+    "thursday" : "rgb(188,189,34)", //lime
+    "friday" : "rgb(255,223,7)", //yellow
+    "saturday" : "rgb(255,127,14)", //orange
+    "sunday" : "rgb(214,39,40)", //red
+  }
+
+  dayTraces.push(Object.assign({},
+    baseTrace, 
+    {
+      name: dayOfWeek,
+      legendgroup: dayOfWeek,
+      marker: {
+        color: colors[dayOfWeek]
+      }
+    },
+    createDaySeries({
+      puzzles: puzzlesOnThisDay,
+    })
+  ));
+
+  smaTraces.push(Object.assign({},
+    baseTrace, 
+    {
+      name: `${dayOfWeek} (sma)`,
+      legendgroup: dayOfWeek,
+      marker: {
+        color: colors[dayOfWeek]
+      }
+    },
+    createSmaSeries({
+      puzzles: puzzlesOnThisDay,
+    })
+  ));
+});
 
 document.addEventListener("DOMContentLoaded", function(event) {
   console.log("DOM fully loaded and parsed");
 
-  //generate week of traces
-  let traces = [];
-  days.forEach((day, index, array) => {
-    traces.push({
-      name: day,
-      type: "scatter",
-      mode: "markers",
-      marker: {
-        symbol: "cross",
-        size: 12,
-      },
-      x: solvedDates[day],
-      y: solvedTimes[day],
-    });
-    traces.push({
-      name: `${day} (sma)`,
-      type: "scatter",
-      mode: "line",
-      x: solvedDates[day],
-      y: sma(solvedTimes[day]),
-    })
-  });
-
   const graphElement = document.getElementById('graph');
-  Plotly.plot(graphElement, traces, {
+  Plotly.plot(graphElement, [...dayTraces, ...smaTraces], {
       margin: { t: 0 },
       yaxis: {
-        range: [0,9000]
+        range: [0,9000/60]
       }
 
     });
 });
 
+function dayOfWeek(yyyymmdd) {
+  return days[new Date(yyyymmdd).getDay()];
+}
 
-// puzzleData
-//   "2017-01-03": {
-//     "daily": {
-//       "constructors": [
-//         "Michael Shteyman"
-//       ],
-//       "copyright": "2017",
-//       "editor": "Will Shortz",
-//       "id": 12748,
-//       "lastUpdated": "2017-01-01 16:50:01 +0000 UTC",
-//       "publicationDate": "2017-01-03"
-//     },
-//     "mini": {
-//       "constructors": [
-//         "Joel Fagliano"
-//       ],
-//       "copyright": "2017",
-//       "id": 12764,
-//       "lastUpdated": "2017-01-03 16:20:18 +0000 UTC",
-//       "publicationDate": "2017-01-03",
-//       "subcategory": 2
-//     }
-//   },
+function createDaySeries({puzzles}) {
+  return {
+    x: puzzles.map((puzzle) => {
+      return puzzle.dateKey;
+    }),
+    y: puzzles.map((puzzle) => {
+      return puzzle.daily.personalData.timeElapsed/60;
+    }),
+  }
+}
 
-// v6
-//   "13762": {
-//     "board": [
-//       "T|0|312",
-//       "R|0|474",
-//       "A|0|392",
-//       "Y|0|475",
-//       "|0|0",
-//       "W|0|478",
-//       "E|0|458",
-//       "S|0|461",
-//       "T|0|478"
-//     ],
-//     "eligible": true,
-//     "firstOpened": 1503461215,
-//     "firstSolved": 1503461763,
-//     "id": "72093224-13762",
-//     "isPuzzleInfoRead": false,
-//     "lastUpdateTime": 1503461764,
-//     "solved": true,
-//     "completed": true,
-//     "timeElapsed": 501,
-//     "epoch": 1503461216
-//   },
+function createSmaSeries({puzzles, halfWidth = 5 }) {
+  return {
+    type: "scatter",
+    mode: "line",
+    x: puzzles.map((puzzle) => {
+      return puzzle.dateKey;
+    }),
+    y: puzzles.map((puzzle) => {
+      return puzzle.daily.personalData.timeElapsed/60;
+    }).reduce((acc, curr, currentIndex, array) => {
+
+      if (currentIndex < halfWidth-1 || currentIndex + halfWidth > array.length ) {
+        // not wide enough to go back or forward
+        //TODO: fix this
+        return [ ...acc, null];
+      }
+      else {
+        const avg = average(array.slice(currentIndex-halfWidth, currentIndex + halfWidth));
+        console.log(`avg is ${avg}`);
+        return [ ...acc, avg];
+      }
+    }, []),
+  }
+}
+
+function average (array) {
+  return array.reduce((prev, curr) => { return prev + curr; }, 0) / array.length;
+}
