@@ -1,8 +1,6 @@
 let puzzleData = require("./puzzleData.json");
 let personalData = require("./personalData.json");
-let sma = require("./sma.js");
 
-const dates = Object.keys(puzzleData);
 const days = [
   "monday",
   "tuesday",
@@ -13,23 +11,18 @@ const days = [
   "sunday",
 ];
 
-
-let solvedDates = {}
-let solvedTimes = {};
-
-function associatePuzzlesWithPersonal(dateKey) {
-  const thisDailyPuzzle = puzzleData[dateKey].daily;
-  const thisMiniPuzzle = puzzleData[dateKey].mini;
-
-  if (thisDailyPuzzle) {
-    thisDailyPuzzle.personalData = personalData[thisDailyPuzzle.id];
-  }
-  if (thisMiniPuzzle) {
-    thisMiniPuzzle.personalData = personalData[thisMiniPuzzle.id];
-  }
+const colors = {
+  "monday": "rgb(39,119,180)", //blue
+  "tuesday": "rgb(23,190,207)", //light blue
+  "wednesday": "rgb(44,160,44)", //green
+  "thursday": "rgb(188,189,34)", //lime
+  "friday": "rgb(255,223,7)", //yellow
+  "saturday": "rgb(255,127,14)", //orange
+  "sunday": "rgb(214,39,40)", //red
 }
 
 let puzzles = [];
+const dates = Object.keys(puzzleData);
 
 // prep the data
 dates.forEach(function (dateKey) {
@@ -51,15 +44,6 @@ puzzles = puzzles.sort((a, b) => {
   return new Date(a.dateKey).getTime() - new Date(b.dateKey).getTime();
 })
 
-const baseTrace = {
-  type: "scatter",
-  mode: "markers",
-  marker: {
-    symbol: "cross",
-    size: 12,
-  },
-};
-
 let dayTraces = [];
 let smaTraces = [];
 
@@ -73,23 +57,17 @@ days.forEach((dayOfWeek) => {
     );
   });
 
-  const colors = {
-    "monday" : "rgb(39,119,180)", //blue
-    "tuesday" : "rgb(23,190,207)", //light blue
-    "wednesday" : "rgb(44,160,44)", //green
-    "thursday" : "rgb(188,189,34)", //lime
-    "friday" : "rgb(255,223,7)", //yellow
-    "saturday" : "rgb(255,127,14)", //orange
-    "sunday" : "rgb(214,39,40)", //red
-  }
+
 
   dayTraces.push(Object.assign({},
-    baseTrace, 
     {
+      type: "scatter",
+      mode: "markers",
       name: dayOfWeek,
       legendgroup: dayOfWeek,
       marker: {
-        color: colors[dayOfWeek]
+        color: colors[dayOfWeek],
+        size: 4
       }
     },
     createDaySeries({
@@ -98,10 +76,16 @@ days.forEach((dayOfWeek) => {
   ));
 
   smaTraces.push(Object.assign({},
-    baseTrace, 
     {
+      type: "scatter",
+      mode: "lines",
       name: `${dayOfWeek} (sma)`,
       legendgroup: dayOfWeek,
+      line: {
+        width: 4,
+        shape: "spline",
+        smoothing: 1
+      },
       marker: {
         color: colors[dayOfWeek]
       }
@@ -167,4 +151,16 @@ function createSmaSeries({puzzles, halfWidth = 5 }) {
 
 function average (array) {
   return array.reduce((prev, curr) => { return prev + curr; }, 0) / array.length;
+}
+
+function associatePuzzlesWithPersonal(dateKey) {
+  const thisDailyPuzzle = puzzleData[dateKey].daily;
+  const thisMiniPuzzle = puzzleData[dateKey].mini;
+
+  if (thisDailyPuzzle) {
+    thisDailyPuzzle.personalData = personalData[thisDailyPuzzle.id];
+  }
+  if (thisMiniPuzzle) {
+    thisMiniPuzzle.personalData = personalData[thisMiniPuzzle.id];
+  }
 }
