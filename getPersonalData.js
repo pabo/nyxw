@@ -1,8 +1,8 @@
 let fs = require("fs");
 let { getPersonalData } = require("./getData.js");
-let personalData = require("./pesonalData.json");
+let personalData = require("./personalData.json");
 
-const minDay = 7641;
+const minDay = 7641; //forget why I picked this number
 const maxDay = 13762;
 
 let promises = [];

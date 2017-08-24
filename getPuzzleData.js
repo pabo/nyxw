@@ -5,26 +5,39 @@ let puzzleData = require("./puzzleData.json");
 let timezoneOffsetInHours = new Date().getTimezoneOffset()/60;
 
 // first date
-const minDate = new Date(Date.UTC(2000, 0, 1, timezoneOffsetInHours, 0, 0))
+const minDate = new Date(Date.UTC(2014, 7, 1, timezoneOffsetInHours, 0, 0))
 
 let promises = [];
 let count = 0;
 
 // construct all promises
 for(let date = minDate; date <= Date.now(); date.setDate(date.getDate() + 1)) {
+
 	let formattedDate = formatDate(date);
-	if (puzzleData[formattedDate]) {
+
+	// one time only, convert.
+	// puzzleData[formattedDate] = { daily: puzzleData[formattedDate] };
+
+	if (!puzzleData[formattedDate]) {
+	  puzzleData[formattedDate] = {};
+	}
+
+	if (puzzleData[formattedDate].mini) {
 		// already have data for this day; skip
+		// console.log(`skipping ${formattedDate}`);
 	}
 	else {
-		promises.push(getPuzzleData(formattedDate).then(function (data) {
+		console.log(`getting ${formattedDate}`);
+		promises.push(getPuzzleData({ date: formattedDate, stream: "mini" }).then(function (data) {
+			console.log(`about to parse data for ${formattedDate}...`);
 			let json = JSON.parse(data);
+			console.log(`...parsed data for ${formattedDate}`);
 			delete(json.body);
 
-			puzzleData[formattedDate] = json;
+			puzzleData[formattedDate].mini = json;
 
 			count++;
-			if (count % 20 === 0) {
+			if (count % 5 === 0) {
 				saveData(puzzleData);
 			  process.stdout.write(`wrote after ${formattedDate}...`);
 			}
@@ -43,10 +56,10 @@ function formatDate(date) {
 }
 
 Promise.all(promises).then(() => {
-  process.stdout.write(`got to the end. saving data...`);
-  saveData(puzzleData).then(() => {
-    process.stdout.write(`saved.\n`);
-	})
+   process.stdout.write(`got to the end. saving data...`);
+   saveData(puzzleData).then(() => {
+     process.stdout.write(`saved.\n`);
+ 	})
 });
 
 function saveData(data) {

@@ -7,9 +7,9 @@ function getPersonalData(id) {
 }
 
 // date is yyyy-mm-dd
-function getPuzzleData(date) {
+function getPuzzleData( { date, stream = daily }) {
 	return _getData({
-		uri: `http://www.nytimes.com/svc/crosswords/v6/puzzle/daily/${date}.json`
+		uri: `http://www.nytimes.com/svc/crosswords/v6/puzzle/${stream}/${date}.json`
 	})
 }
 
