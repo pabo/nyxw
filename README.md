@@ -17,3 +17,7 @@ node getPuzzleData.js
 
 ## graph the data
 tbd
+
+
+## TODO
+- go back and re-fetch all v2 personal data with v6
