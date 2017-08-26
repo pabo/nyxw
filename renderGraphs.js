@@ -1,4 +1,6 @@
 let { puzzles } = require("./combineStats");
+let { createDaySeries, createSmaSeries } = require("./createSeries");
+
 const msInAWeek = 1000 * 60 * 60 * 24 * 7;
 const days = [
   "monday",
@@ -146,10 +148,11 @@ days.forEach((dayOfWeek) => {
       mode: "markers",
       name: dayOfWeek,
       legendgroup: dayOfWeek,
+      hoverinfo: "text",
       marker: {
         color: colors[dayOfWeek],
         line: {
-          width: 2,
+          width: 1,
           color: "black"
         }
       }
@@ -176,15 +179,23 @@ days.forEach((dayOfWeek) => {
       },
       sizeFunction: (puzzle) => {
         const maxSize = 40;
+        const sizeShift = 5;
+        const minTime = 1000 * 60 * 6;
+        const maxTime = msInAWeek / 7;
         let firstOpened = new Date(puzzle.daily.personalData.firstOpened*1000);
         let lastUpdateTime = new Date(puzzle.daily.personalData.lastUpdateTime*1000);
 
         const timeDiff = lastUpdateTime - firstOpened;
-        const rawSize = Math.min(timeDiff,2*msInAWeek);
-        const calcSize = Math.round(maxSize*rawSize/msInAWeek);
+        const rawSize = Math.min(timeDiff, maxTime);
+        const calcSize = Math.round(maxSize*rawSize/maxTime);
 
-        return Math.log(timeDiff / (1000 * 60 * 10)) + 5;
-      }
+        // return Math.log(timeDiff / minTime ) + 5;
+        return calcSize + sizeShift;
+      },
+      hoverTextFunction: (puzzle) => {
+        return `<b>${puzzle.dateKey}</b>
+        <br>And then something here`;
+      },
     })
   ));
 });
@@ -224,47 +235,7 @@ function dayOfWeek(yyyymmdd) {
   return days[new Date(yyyymmdd).getDay()];
 }
 
-function createDaySeries({puzzles, yFunction, sizeFunction, opacityFunction}) {
-  const series = {
-    x: puzzles.map((puzzle) => { return puzzle.dateKey; }),
-    y: puzzles.map(yFunction),
-    marker: {}
-  }
 
-  if (sizeFunction) { series.marker.size = puzzles.map(sizeFunction); }
-  if (opacityFunction) { series.marker.opacity = puzzles.map(opacityFunction); }
-
-  return series;
-}
-
-function createSmaSeries({puzzles, halfWidth = 5 }) {
-  const series = {
-    type: "scatter",
-    mode: "line",
-    x: puzzles.map((puzzle) => { return puzzle.dateKey; }),
-    y: puzzles.map((puzzle) => {
-      return puzzle.daily.personalData.timeElapsed/60;
-    }).reduce((acc, curr, currentIndex, array) => {
-
-      if (currentIndex < halfWidth-1 || currentIndex + halfWidth > array.length ) {
-        // not wide enough to go back or forward
-        //TODO: for now, return null, but could do better
-        return [ ...acc, null];
-      }
-      else {
-        const avg = average(array.slice(currentIndex-halfWidth, currentIndex + halfWidth));
-        return [ ...acc, avg];
-      }
-    }, []),
-  };
-
-console.log(series);
-  return series;
-}
-
-function average (array) {
-  return array.reduce((prev, curr) => { return prev + curr; }, 0) / array.length;
-}
 
 function associatePuzzlesWithPersonal(dateKey) {
   const thisDailyPuzzle = puzzleData[dateKey].daily;
