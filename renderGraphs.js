@@ -1,7 +1,8 @@
 let { puzzles } = require("./combineStats");
 let { createDaySeries, createSmaSeries } = require("./createSeries");
 
-const msInAWeek = 1000 * 60 * 60 * 24 * 7;
+const msInADay = 1000 * 60 * 60 * 24;
+const msInAWeek = msInADay * 7;
 const days = [
   "monday",
   "tuesday",
@@ -132,6 +133,25 @@ days.forEach((dayOfWeek) => {
 
 // create traces for solveLength graph
 let solveLengthTraces = [];
+
+const sizeScale = createScalingFunction({
+  inputMin: 1000 * 60 * 6,
+  inputMax: msInADay,
+  outputMin: 5,
+  outputMax: 100,
+  clipping: true,
+  useLog: true
+});
+
+const opacityScale = createScalingFunction({
+  inputMin: 1000 * 60 * 6,
+  inputMax: msInADay,
+  outputMin: .05,
+  outputMax: .5,
+  reverse: true,
+});
+
+
 days.forEach((dayOfWeek) => {
   // filter down to completed daily for this day
   puzzlesOnThisDay = puzzles.filter((puzzle) => {
@@ -169,32 +189,49 @@ days.forEach((dayOfWeek) => {
       },
       opacityFunction: (puzzle) => {
         let firstOpened = new Date(puzzle.daily.personalData.firstOpened*1000);
-        let lastUpdateTime = new Date(puzzle.daily.personalData.lastUpdateTime*1000);
+        let lastUpdateTime = new Date(puzzle.daily.personalData.firstSolved*1000);
         
         const timeDiff = lastUpdateTime - firstOpened;
-        // const minTime = 1000 * 60 * 6;
-        // maxLogValue = Math.log(timeDiff/minTime);
 
-        return 1 - Math.min(timeDiff/msInAWeek, 1);
+        var scaled;
+        try {
+          scaled = opacityScale(timeDiff);
+        } 
+        catch (error) {
+          console.log("error", puzzle);
+          scaled = 1;
+        }
+
+        return scaled;
       },
       sizeFunction: (puzzle) => {
-        const maxSize = 40;
-        const sizeShift = 5;
-        const minTime = 1000 * 60 * 6;
-        const maxTime = msInAWeek / 7;
         let firstOpened = new Date(puzzle.daily.personalData.firstOpened*1000);
-        let lastUpdateTime = new Date(puzzle.daily.personalData.lastUpdateTime*1000);
+        let lastUpdateTime = new Date(puzzle.daily.personalData.firstSolved*1000);
 
         const timeDiff = lastUpdateTime - firstOpened;
-        const rawSize = Math.min(timeDiff, maxTime);
-        const calcSize = Math.round(maxSize*rawSize/maxTime);
 
-        // return Math.log(timeDiff / minTime ) + 5;
-        return calcSize + sizeShift;
+        var scaled;
+        try {
+          scaled = sizeScale(timeDiff);
+        } 
+        catch (error) {
+          console.log("error", puzzle);
+          scaled = 1;
+        }
+
+        return scaled;
       },
       hoverTextFunction: (puzzle) => {
+        let firstOpened = new Date(puzzle.daily.personalData.firstOpened*1000);
+        let lastUpdateTime = new Date(puzzle.daily.personalData.firstSolved*1000);
+
+        const timeDiff = lastUpdateTime - firstOpened;
+
         return `<b>${puzzle.dateKey}</b>
-        <br>And then something here`;
+        <br>timeDiff: ${(timeDiff / ( 1000 * 60 )).toFixed(2) } minutes
+        <br>opacity: ${opacityScale(timeDiff)}
+        <br>size: ${sizeScale(timeDiff)}
+        `;
       },
     })
   ));
@@ -254,4 +291,46 @@ function associatePuzzlesWithPersonal(dateKey) {
 function attachGraphToPage({id, traces, formatting}) {
   const graphElement = document.getElementById(id);
   Plotly.plot(graphElement, traces, formatting);
+}
+
+function createScalingFunction({
+  outputMin,
+  outputMax,
+  inputMin,
+  inputMax,
+  useLog = false,
+  reverse = false,
+  clipping = false
+}) {
+  const inputRange = inputMax - inputMin;
+  const outputRange = outputMax - outputMin;
+
+  return (input) => {
+    if (input < inputMin) {
+      console.log(`input ${input} is less than inputMin ${inputMin}`);
+    }
+
+    if (input > inputMax) {
+      input = clipping ? null : inputMax;
+    }
+
+    let inputRatio = (input - inputMin) / inputRange;
+
+    if (useLog) {
+      inputRatio = fakeLog(inputRatio);
+    }
+
+    const outputSize = reverse ?
+     (1 - inputRatio) * outputMax :
+     inputRatio * outputMax;
+
+    const output = outputMin + outputSize;
+
+    return output;
+  }
+}
+
+function fakeLog(x) {
+  // return Math.sqrt((2 * x) - (x * x));
+  return Math.pow(x,(1/2));
 }

@@ -21,3 +21,6 @@ tbd
 
 ## TODO
 - go back and re-fetch all v2 personal data with v6
+- how to order scatter plots to control zaxis type issues
+- how to log scale opacity/size (or tanh or something)
+- do I have off by one error across the midnight boundary?

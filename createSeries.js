@@ -12,7 +12,7 @@ const emptyTraceObject = {
 };
 
 function createDaySeries({
-  puzzles, 
+  puzzles,
   yFunction,
   sizeFunction,
   opacityFunction,
