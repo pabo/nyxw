@@ -203,6 +203,7 @@ days.forEach((dayOfWeek) => {
 
 
 
+
 // attach the things
 document.addEventListener("DOMContentLoaded", function(event) {
   console.log("DOM fully loaded and parsed");
@@ -219,6 +220,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
     formatting: defaultFormatting,
   });
 
+console.log("solveLength traces: ", solveLengthTraces);
   attachGraphToPage({
     id: "solveLength",
     traces: solveLengthTraces,

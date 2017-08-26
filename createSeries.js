@@ -1,3 +1,16 @@
+const defaultSize = 5;
+const defaultOpacity = 1;
+const defaultHoverText = null;
+const emptyTraceObject = {
+  x: [],
+  y: [],
+  hovertext: [],
+  marker: {
+    size: [],
+    opacity: [],
+  }
+};
+
 function createDaySeries({
   puzzles, 
   yFunction,
@@ -6,45 +19,26 @@ function createDaySeries({
   hoverTextFunction
 }) {
   return puzzles.reduce((trace, puzzle) => {
-    const returnObject = {
-      x: [],
-      y: [],
+    const returnObject = _.merge({}, emptyTraceObject);
+
+    return {
+      x: [...trace.x, puzzle.dateKey],
+      y: [...trace.y, yFunction(puzzle)],
+      hovertext: hoverTextFunction ?
+        [...trace.hovertext, hoverTextFunction(puzzle)] :
+        defaultHoverText,
+ 
       marker: {
-        size: [],
-        opacity: [],
-        hovertext: [],
+        size: sizeFunction ? 
+          [...trace.marker.size, sizeFunction(puzzle)] :
+          defaultSize,
+
+        opacity: opacityFunction ? 
+          [...trace.marker.opacity, opacityFunction(puzzle)] :
+          defaultOpacity,
       }
     };
-
-    returnObject.x = [...trace.x, puzzle.dateKey];
-    returnObject.y = [...trace.y, yFunction(puzzle)];
-
-    if (sizeFunction) {
-      returnObject.marker.size = [...trace.marker.size, sizeFunction(puzzle)];
-    }
-    else {
-      returnObject.marker.size = 5;
-    }
-    if (opacityFunction) {
-      returnObject.marker.opacity = [...trace.marker.opacity, opacityFunction(puzzle)];
-    }
-    else {
-      returnObject.marker.opacity = 1;
-    }
-    if (hoverTextFunction) {
-      returnObject.marker.hovertext = [...trace.marker.hovertext, hoverTextFunction(puzzle)];
-    }
-
-    return returnObject;
-  }, {
-    x: [],
-    y: [],
-    marker: {
-      size: [],
-      opacity: [],
-      hovertext: [],
-    }
-  });
+  }, _.merge({}, emptyTraceObject));
 }
 
 function createSmaSeries({puzzles, halfWidth = 5 }) {
