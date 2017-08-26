@@ -1,4 +1,5 @@
 let { puzzles } = require("./combineStats");
+const msInAWeek = 1000 * 60 * 60 * 24 * 7;
 const days = [
   "monday",
   "tuesday",
@@ -38,7 +39,7 @@ days.forEach((dayOfWeek) => {
     );
   });
 
-  dayTraces.push(Object.assign({},
+  dayTraces.push(_.merge({},
     {
       type: "scatter",
       mode: "markers",
@@ -46,7 +47,11 @@ days.forEach((dayOfWeek) => {
       legendgroup: dayOfWeek,
       marker: {
         color: colors[dayOfWeek],
-        size: 4
+        size: 5,
+        line: {
+          width: .5,
+          color: "black"
+        }
       }
     },
     createDaySeries({
@@ -57,14 +62,15 @@ days.forEach((dayOfWeek) => {
     })
   ));
 
-  smaTraces.push(Object.assign({},
+  smaTraces.push(_.merge({},
     {
       type: "scatter",
       mode: "lines",
       name: `${dayOfWeek} (sma)`,
       legendgroup: dayOfWeek,
+      opacity: .4,
       line: {
-        width: 4,
+        width: 5,
         shape: "spline",
         smoothing: 1
       },
@@ -76,6 +82,8 @@ days.forEach((dayOfWeek) => {
       puzzles: puzzlesOnThisDay,
     })
   ));
+
+  console.log(smaTraces);
 });
 
 // create traces for timeOfDay graph
@@ -90,7 +98,7 @@ days.forEach((dayOfWeek) => {
     );
   });
 
-  timeOfDayTraces.push(Object.assign({},
+  timeOfDayTraces.push(_.merge({},
     {
       type: "scatter",
       mode: "markers",
@@ -98,7 +106,11 @@ days.forEach((dayOfWeek) => {
       legendgroup: dayOfWeek,
       marker: {
         color: colors[dayOfWeek],
-        size: 4
+        size: 5,
+        line: {
+          width: 1,
+          color: "black"
+        }
       }
     },
     createDaySeries({ 
@@ -116,6 +128,69 @@ days.forEach((dayOfWeek) => {
 });
 
 
+// create traces for solveLength graph
+let solveLengthTraces = [];
+days.forEach((dayOfWeek) => {
+  // filter down to completed daily for this day
+  puzzlesOnThisDay = puzzles.filter((puzzle) => {
+    return (puzzle.daily
+      && puzzle.daily.personalData
+      && puzzle.daily.personalData.solved
+      && puzzle.dayOfWeek === dayOfWeek
+    );
+  });
+
+  solveLengthTraces.push(_.merge({},
+    {
+      type: "scatter",
+      mode: "markers",
+      name: dayOfWeek,
+      legendgroup: dayOfWeek,
+      marker: {
+        color: colors[dayOfWeek],
+        line: {
+          width: 2,
+          color: "black"
+        }
+      }
+    },
+    createDaySeries({ 
+      puzzles: puzzlesOnThisDay,
+      yFunction: (puzzle) => {
+        let firstOpened = new Date(puzzle.daily.personalData.firstOpened*1000);
+
+        // a little hacky: set all the Dates to the same year/month/day and preserve the time.
+        let timeOnly = new Date(`2017-01-01 ${firstOpened.getHours()}:${firstOpened.getMinutes()}:${firstOpened.getSeconds()}`);
+
+        return timeOnly;
+      },
+      opacityFunction: (puzzle) => {
+        let firstOpened = new Date(puzzle.daily.personalData.firstOpened*1000);
+        let lastUpdateTime = new Date(puzzle.daily.personalData.lastUpdateTime*1000);
+        
+        const timeDiff = lastUpdateTime - firstOpened;
+        // const minTime = 1000 * 60 * 6;
+        // maxLogValue = Math.log(timeDiff/minTime);
+
+        return 1 - Math.min(timeDiff/msInAWeek, 1);
+      },
+      sizeFunction: (puzzle) => {
+        const maxSize = 40;
+        let firstOpened = new Date(puzzle.daily.personalData.firstOpened*1000);
+        let lastUpdateTime = new Date(puzzle.daily.personalData.lastUpdateTime*1000);
+
+        const timeDiff = lastUpdateTime - firstOpened;
+        const rawSize = Math.min(timeDiff,2*msInAWeek);
+        const calcSize = Math.round(maxSize*rawSize/msInAWeek);
+
+        return Math.log(timeDiff / (1000 * 60 * 10)) + 5;
+      }
+    })
+  ));
+});
+
+
+
 
 // attach the things
 document.addEventListener("DOMContentLoaded", function(event) {
@@ -124,13 +199,18 @@ document.addEventListener("DOMContentLoaded", function(event) {
   attachGraphToPage({
     id: "timesByDay",
     traces: [...dayTraces, ...smaTraces],
-    formatting: Object.assign({}, defaultFormatting, { yaxis: { range: [0,9000/60] } })
+    formatting: _.merge({}, defaultFormatting, { yaxis: { range: [0,9000/60] } })
   });
 
   attachGraphToPage({
     id: "timeOfDay",
     traces: timeOfDayTraces,
-    // formatting: Object.assign({}, defaultFormatting, { yaxis: { range: [0,9000/60] } })
+    formatting: defaultFormatting,
+  });
+
+  attachGraphToPage({
+    id: "solveLength",
+    traces: solveLengthTraces,
     formatting: defaultFormatting,
   });
 });
@@ -144,22 +224,24 @@ function dayOfWeek(yyyymmdd) {
   return days[new Date(yyyymmdd).getDay()];
 }
 
-function createDaySeries({puzzles, yFunction}) {
-  return {
-    x: puzzles.map((puzzle) => {
-      return puzzle.dateKey;
-    }),
-    y: puzzles.map(yFunction)
+function createDaySeries({puzzles, yFunction, sizeFunction, opacityFunction}) {
+  const series = {
+    x: puzzles.map((puzzle) => { return puzzle.dateKey; }),
+    y: puzzles.map(yFunction),
+    marker: {}
   }
+
+  if (sizeFunction) { series.marker.size = puzzles.map(sizeFunction); }
+  if (opacityFunction) { series.marker.opacity = puzzles.map(opacityFunction); }
+
+  return series;
 }
 
 function createSmaSeries({puzzles, halfWidth = 5 }) {
-  return {
+  const series = {
     type: "scatter",
     mode: "line",
-    x: puzzles.map((puzzle) => {
-      return puzzle.dateKey;
-    }),
+    x: puzzles.map((puzzle) => { return puzzle.dateKey; }),
     y: puzzles.map((puzzle) => {
       return puzzle.daily.personalData.timeElapsed/60;
     }).reduce((acc, curr, currentIndex, array) => {
@@ -171,11 +253,13 @@ function createSmaSeries({puzzles, halfWidth = 5 }) {
       }
       else {
         const avg = average(array.slice(currentIndex-halfWidth, currentIndex + halfWidth));
-        console.log(`avg is ${avg}`);
         return [ ...acc, avg];
       }
     }, []),
-  }
+  };
+
+console.log(series);
+  return series;
 }
 
 function average (array) {
