@@ -1,5 +1,5 @@
 module.exports = {
-    entry: "./combineStats.js",
+    entry: "./renderGraphs.js",
     output: {
         path: `${__dirname}/target`,
         filename: "bundle.js"
