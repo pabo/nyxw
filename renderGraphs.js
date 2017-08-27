@@ -60,7 +60,7 @@ days.forEach((dayOfWeek) => {
     createDaySeries({
       puzzles: puzzlesOnThisDay,
       yFunction: (puzzle) => { 
-        return puzzle.daily.personalData.timeElapsed/60;
+        return [puzzle.daily.personalData.timeElapsed/60];
       }
     })
   ));
@@ -85,8 +85,6 @@ days.forEach((dayOfWeek) => {
       puzzles: puzzlesOnThisDay,
     })
   ));
-
-  console.log(smaTraces);
 });
 
 // create traces for timeOfDay graph
@@ -121,10 +119,7 @@ days.forEach((dayOfWeek) => {
       yFunction: (puzzle) => {
         let firstOpened = new Date(puzzle.daily.personalData.firstOpened*1000);
 
-        // a little hacky: set all the Dates to the same year/month/day and preserve the time.
-        let timeOnly = new Date(`2017-01-01 ${firstOpened.getHours()}:${firstOpened.getMinutes()}:${firstOpened.getSeconds()}`);
-
-        return timeOnly;
+        return [timeOnly(firstOpened)];
       }
     })
   ));
@@ -182,10 +177,7 @@ days.forEach((dayOfWeek) => {
       yFunction: (puzzle) => {
         let firstOpened = new Date(puzzle.daily.personalData.firstOpened*1000);
 
-        // a little hacky: set all the Dates to the same year/month/day and preserve the time.
-        let timeOnly = new Date(`2017-01-01 ${firstOpened.getHours()}:${firstOpened.getMinutes()}:${firstOpened.getSeconds()}`);
-
-        return timeOnly;
+        return [timeOnly(firstOpened)];
       },
       opacityFunction: (puzzle) => {
         let firstOpened = new Date(puzzle.daily.personalData.firstOpened*1000);
@@ -193,16 +185,7 @@ days.forEach((dayOfWeek) => {
         
         const timeDiff = lastUpdateTime - firstOpened;
 
-        var scaled;
-        try {
-          scaled = opacityScale(timeDiff);
-        } 
-        catch (error) {
-          console.log("error", puzzle);
-          scaled = 1;
-        }
-
-        return scaled;
+        return [opacityScale(timeDiff)];
       },
       sizeFunction: (puzzle) => {
         let firstOpened = new Date(puzzle.daily.personalData.firstOpened*1000);
@@ -210,16 +193,7 @@ days.forEach((dayOfWeek) => {
 
         const timeDiff = lastUpdateTime - firstOpened;
 
-        var scaled;
-        try {
-          scaled = sizeScale(timeDiff);
-        } 
-        catch (error) {
-          console.log("error", puzzle);
-          scaled = 1;
-        }
-
-        return scaled;
+        return [sizeScale(timeDiff)];
       },
       hoverTextFunction: (puzzle) => {
         let firstOpened = new Date(puzzle.daily.personalData.firstOpened*1000);
@@ -227,15 +201,142 @@ days.forEach((dayOfWeek) => {
 
         const timeDiff = lastUpdateTime - firstOpened;
 
-        return `<b>${puzzle.dateKey}</b>
+        return [`<b>${puzzle.dateKey}</b>
         <br>timeDiff: ${(timeDiff / ( 1000 * 60 )).toFixed(2) } minutes
         <br>opacity: ${opacityScale(timeDiff)}
         <br>size: ${sizeScale(timeDiff)}
-        `;
+        `];
       },
     })
   ));
 });
+
+
+// create traces for activityScatter graph
+let activityScatterTraces = [];
+
+days.forEach((dayOfWeek) => {
+  // filter down to completed daily for this day
+  puzzlesOnThisDay = puzzles.filter((puzzle) => {
+    return (puzzle.daily
+      && puzzle.daily.personalData
+      && puzzle.daily.personalData.board
+      // TODO could make a different trace for solved vs not, so it can be toggled
+      // && puzzle.daily.personalData.solved
+      && puzzle.dayOfWeek === dayOfWeek
+    );
+  });
+
+  // scatter traces for each day
+  activityScatterTraces.push(_.merge({},
+    {
+      type: "scatter",
+      mode: "markers",
+      name: dayOfWeek,
+      legendgroup: dayOfWeek,
+      // hoverinfo: "text",
+      marker: {
+        color: colors[dayOfWeek],
+        size: 1
+      }
+    },
+    createDaySeries({ 
+      puzzles: puzzlesOnThisDay,
+      xFunction: (puzzle) => {
+        let firstOpened = puzzle.daily.personalData.firstOpened;
+        return puzzle.daily.personalData.board.reduce((acc, curr) => {
+          secondsThreshhold = 1000000000; //anything less is seconds from start
+          const timestamp = parseInt(curr.split("|")[2],10); // "S|0|29" -> 29
+          if (timestamp > secondsThreshhold) {
+            //absolute timestamp
+            return [...acc, dateOnly(new Date(timestamp * 1000))];
+          }
+          else if (timestamp < 0) {
+            console.warn(`timestamp ${timestamp} is negative. setting to 0`);
+            return [...acc, dateOnly(new Date(firstOpened * 1000))];
+          }
+          else {
+            return [...acc, dateOnly(new Date((firstOpened + timestamp) * 1000))];
+          }
+        }, []);
+      },
+      yFunction: (puzzle) => {
+        let firstOpened = puzzle.daily.personalData.firstOpened;
+        return puzzle.daily.personalData.board.reduce((acc, curr) => {
+          secondsThreshhold = 1000000000; //anything less is seconds from start
+          const timestamp = parseInt(curr.split("|")[2],10); // "S|0|29" -> 29
+          if (timestamp > secondsThreshhold) {
+            //absolute timestamp
+            return [...acc, timeOnly(new Date(timestamp * 1000))];
+          } 
+          else {
+            return [...acc, timeOnly(new Date((firstOpened + timestamp) * 1000))];
+          }
+        }, []);
+      },
+      hoverTextFunction: (puzzle) => {
+        return puzzle.daily.personalData.board.reduce((acc, curr) => {
+          let firstOpened = new Date(puzzle.daily.personalData.firstOpened*1000);
+          let lastUpdateTime = new Date(puzzle.daily.personalData.firstSolved*1000);
+
+          const timeDiff = lastUpdateTime - firstOpened;
+
+          const text = [`<b>${puzzle.dateKey}</b>
+          <br>timeDiff: ${(timeDiff / ( 1000 * 60 )).toFixed(2) } minutes
+          <br>opacity: ${opacityScale(timeDiff)}
+          <br>size: ${sizeScale(timeDiff)}
+          <br>puzzleId: ${puzzle.daily.id}
+          `];
+
+          return [...acc, text];
+        }, []);
+      },
+    })
+  ));
+
+});
+
+// bar traces to shade weekends
+// activityScatterTraces.unshift({
+//   x: [ dateOnly(new Date("2016-05-05")) ],
+//   y: [ timeOnly(new Date("2017-01-01 12:01:23")) ],
+//   type: "bar",
+// });
+
+activityScatterTraces.unshift(_.merge({}, {
+  type: "bar",
+  name: "weekends",
+  legendgroup: "weekends",
+  hoverinfo: "none",
+  marker: {
+    color: "rgb(250,250,250)"
+  }
+},
+createDaySeries({
+  puzzles,
+  xFunction: (puzzle) => {
+    if (new Date(puzzle.dateKey) < new Date("2015-01-01")) {
+      return [];
+    }
+    else {
+      return [puzzle.dateKey];
+    }
+  },
+  yFunction: (puzzle) => {
+    if (new Date(puzzle.dateKey) < new Date("2015-01-01")) {
+      return [];
+    }
+    else {
+      return isWeekend(puzzle.dateKey) ?
+       [timeOnly(new Date("2017-01-01 23:59:59"))]
+       : [timeOnly(new Date("2017-01-01 00:00:00"))];
+    }
+  }
+})));
+
+// delete activityScatterTraces[7].marker;
+
+
 
 
 
@@ -257,10 +358,16 @@ document.addEventListener("DOMContentLoaded", function(event) {
     formatting: defaultFormatting,
   });
 
-console.log("solveLength traces: ", solveLengthTraces);
   attachGraphToPage({
     id: "solveLength",
     traces: solveLengthTraces,
+    formatting: defaultFormatting,
+  });
+
+console.log("solveLength traces: ", activityScatterTraces);
+  attachGraphToPage({
+    id: "activityScatter",
+    traces: activityScatterTraces,
     formatting: defaultFormatting,
   });
 });
@@ -270,22 +377,17 @@ console.log("solveLength traces: ", solveLengthTraces);
 
 
 // helpers
-function dayOfWeek(yyyymmdd) {
-  return days[new Date(yyyymmdd).getDay()];
+
+// dateKey looks like "YYYY-MM-DD"
+// returns look like "monday"
+function dayOfWeek(dateKey) {
+  return days[new Date(dateKey).getDay()];
 }
 
+function isWeekend(dateKey) {
+  const dayOfWeek = new Date(dateKey).getDay();
 
-
-function associatePuzzlesWithPersonal(dateKey) {
-  const thisDailyPuzzle = puzzleData[dateKey].daily;
-  const thisMiniPuzzle = puzzleData[dateKey].mini;
-
-  if (thisDailyPuzzle) {
-    thisDailyPuzzle.personalData = personalData[thisDailyPuzzle.id];
-  }
-  if (thisMiniPuzzle) {
-    thisMiniPuzzle.personalData = personalData[thisMiniPuzzle.id];
-  }
+  return (dayOfWeek === 5 || dayOfWeek === 6);
 }
 
 function attachGraphToPage({id, traces, formatting}) {
@@ -330,7 +432,31 @@ function createScalingFunction({
   }
 }
 
+// maps [0,1] -> [0,1] but with some logarithmic-like curve
 function fakeLog(x) {
   // return Math.sqrt((2 * x) - (x * x));
   return Math.pow(x,(1/2));
 }
+
+function timeOnly(date) {
+  // a little hacky: set all the Dates to the same year/month/day and preserve the time.
+  const timeOnly = `${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
+  const dateTime = new Date(`1970-01-01 ${timeOnly}`);
+  return dateTime;
+
+  //also hacky: return time without delimters. this gets converted to a number though.
+  // return `${padTime(date.getHours())}${padTime(date.getMinutes())}${padTime(date.getSeconds())}`;
+}
+
+function secondsPastMidnight(date) {
+  // return the number of seconds
+  return ((date.getHours() * 60) + date.getMinutes()) * 60 + date.getSeconds();
+}
+
+function dateOnly(date) {
+  return `${date.getFullYear()}-${date.getMonth()+1}-${date.getDate()}`;
+}
+
+// function padTime(number) {
+//   return ("00" + number).slice(-2);
+// }
