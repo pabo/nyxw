@@ -236,8 +236,9 @@ days.forEach((dayOfWeek) => {
       legendgroup: dayOfWeek,
       // hoverinfo: "text",
       marker: {
+        symbol: "square",
         color: colors[dayOfWeek],
-        size: 1
+        size: .5,
       }
     },
     createDaySeries({ 
@@ -245,7 +246,7 @@ days.forEach((dayOfWeek) => {
       xFunction: (puzzle) => {
         let firstOpened = puzzle.daily.personalData.firstOpened;
         return puzzle.daily.personalData.board.reduce((acc, curr) => {
-          secondsThreshhold = 1000000000; //anything less is seconds from start
+          const secondsThreshhold = 1000000000; //anything less is seconds from start
           const timestamp = parseInt(curr.split("|")[2],10); // "S|0|29" -> 29
           if (timestamp > secondsThreshhold) {
             //absolute timestamp
@@ -308,6 +309,7 @@ activityScatterTraces.unshift(_.merge({}, {
   name: "weekends",
   legendgroup: "weekends",
   hoverinfo: "none",
+  width: msInADay,
   marker: {
     color: "rgb(250,250,250)"
   }
