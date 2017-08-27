@@ -14,20 +14,6 @@ const emptyTraceObject = {
 function createDaySeries({
   puzzles,
   xFunction = (puzzle) => {
-    if (
-      (new Date(puzzle.dateKey)).getMonth() < 0
-      || (new Date(puzzle.dateKey)).getMonth() > 11
-      || (new Date(puzzle.dateKey)).getFullYear() < 1990
-      || (new Date(puzzle.dateKey)).getFullYear() > 2020
-      || (new Date(puzzle.dateKey)).getDate() > 31
-      || (new Date(puzzle.dateKey)).getDate() < 0
-      || (new Date(puzzle.dateKey)) < (new Date("1990-1-1"))
-    ) {
-      console.log(`UH OH ${puzzle.dateKey} is bad!`);
-      console.log(`UH OH ${puzzle.dateKey} is bad!`);
-      console.log(`UH OH ${puzzle.dateKey} is bad!`);
-      console.log(`UH OH ${puzzle.dateKey} is bad!`);
-    }
     return [puzzle.dateKey]
   },
   yFunction,
