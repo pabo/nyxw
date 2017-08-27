@@ -238,7 +238,6 @@ days.forEach((dayOfWeek) => {
       marker: {
         symbol: "square",
         color: colors[dayOfWeek],
-        size: .5,
       }
     },
     createDaySeries({ 
@@ -292,7 +291,8 @@ days.forEach((dayOfWeek) => {
           return [...acc, text];
         }, []);
       },
-    })
+    }),
+    { markers: { size: 1 } }
   ));
 
 });
