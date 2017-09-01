@@ -11,8 +11,6 @@ const days = [
   "sunday",
 ];
 
-
-
 let puzzles = [];
 const dates = Object.keys(puzzleData);
 
@@ -26,6 +24,14 @@ dates.forEach(function (dateKey) {
 
   // add .dateKey
   puzzleData[dateKey].dateKey = dateKey;
+
+  // add .personalData.boardTypeRelative
+  if (puzzleData[dateKey].daily
+      && puzzleData[dateKey].daily.personalData
+      && puzzleData[dateKey].daily.personalData.board) {
+
+    puzzleData[dateKey].daily.personalData.boardTypeRelative = isRelative(puzzleData[dateKey].daily.personalData.board);
+  }
 
   // push onto puzzles array
   puzzles.push(puzzleData[dateKey]);
@@ -50,6 +56,14 @@ function associatePuzzlesWithPersonal(dateKey) {
 
 function dayOfWeek(yyyymmdd) {
   return days[new Date(yyyymmdd).getDay()];
+}
+
+function isRelative(board) {
+  return !board.some((square) => { return parseTimestamp(square) > 1000000000 })
+}
+
+function parseTimestamp(text) {
+  return parseInt(text.split("|")[2], 10); // "S|0|29" -> 29
 }
 
 module.exports = { 
